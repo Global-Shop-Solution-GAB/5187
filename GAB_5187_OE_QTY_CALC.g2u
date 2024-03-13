@@ -1,0 +1,210 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Modified 03/20/18 to round values returned to order/quote qty field to 2 decimal places.
+
+'12010 - ORDER ENTRY LINES POPULATE HOOK
+'12431 - ORDER ENTRY LINES CUSTOM BUTTON 1 HOOK
+'GAB-BTN-1
+'000077 - USER 1
+'000080 - USER 2
+'000082 - USER 3
+'000084 - USER 4
+'000086 - USER 5
+'000052 - Part Number
+'745X375
+
+'10260 - QUOTE LINE POPULATE HOOK
+'10690 - QUOTE LINE SCRIPT 3 HOOK
+'000203 - SCRIPT 3
+'000030 - USER 1
+'000023 - USER 2
+'000015 - USER 3
+'000017 - USER 4
+'000022 - USER 5
+'000052 - Part Number
+'675X287
+
+
+V.Local.sPart.Declare
+
+'f.Intrinsic.Debug.BenchmarkModeEnable
+
+F.Intrinsic.Control.SelectCase(V.Caller.Hook)
+
+'ORDER ENTRY LINES - POPULATE
+F.Intrinsic.Control.Case(12010)
+	V.Passed.GAB-BTN-1.Set("Calc")
+	F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-BTN-1,"LOCK",0)
+	F.Intrinsic.Variable.SetProperty("GAB-BTN-1","PL",742)
+	F.Intrinsic.Variable.SetProperty("GAB-BTN-1","PT",378)
+	
+'QUOTE LINES - POPULATE
+F.Intrinsic.Control.Case(10260)
+	V.Passed.000203.Set("Calc")
+	F.Intrinsic.Variable.SetProperty("000203","PL",687)
+	F.Intrinsic.Variable.SetProperty("000203","PT",287)
+	
+'ORDER ENTRY LINES - CUSTOM BUTTON 1
+F.Intrinsic.Control.Case(12431)
+	F.Intrinsic.Control.CallSub(Salesorderqtycalc)
+	
+'QUOTE LINES - SCRIPT 3 BUTTON
+F.Intrinsic.Control.Case(10690)
+	F.Intrinsic.Control.CallSub(Quoteqtycalc)
+	
+'QUOTE LINES - PRE-SAVE BUTTON
+f.Intrinsic.Control.Case(10531)
+	'Checks to see if the part number starts with a 6T or 7T, if so it requires some input into the "detail" (user 5) field
+	v.Local.sPart.set(v.Passed.000052)
+	f.Intrinsic.String.Left(v.Local.sPart,2,v.Local.sPart)
+	f.Intrinsic.Control.If(v.Local.sPart,=,"6T","OR",v.Local.sPart,=,"7T")
+		f.Intrinsic.Control.If(v.Passed.000022,=,"")
+			f.Intrinsic.UI.Msgbox("Must enter a pitch in the Detail field for trim pieces.","Invalid Pitch")
+			v.Passed.777777.set(1)
+		f.Intrinsic.Control.EndIf
+	f.Intrinsic.Control.EndIf
+	
+'ORDER LINES - PRE-SAVE BUTTON
+f.Intrinsic.Control.Case(12230)
+	'Checks to see if the part number starts with a 6T or 7T, if so it requires some input into the "detail" (user 5) field
+	v.Local.sPart.set(v.Passed.000052)
+	f.Intrinsic.String.Left(v.Local.sPart,2,v.Local.sPart)
+	f.Intrinsic.Control.If(v.Local.sPart,=,"6T","OR",v.Local.sPart,=,"7T")
+		f.Intrinsic.Control.If(v.Passed.000086,=,"")
+			f.Intrinsic.UI.Msgbox("Must enter a pitch in the Detail field for trim pieces.","Invalid Pitch")
+			v.Passed.777777.set(1)
+		f.Intrinsic.Control.EndIf
+	f.Intrinsic.Control.EndIf
+
+'End Select Case
+F.Intrinsic.Control.EndSelect
+
+Program.Sub.Main.End
+
+Program.Sub.SalesOrderQtyCalc.Start
+'000077 - USER 1
+'000080 - USER 2
+'000082 - USER 3
+'000084 - USER 4
+'000086 - USER 5
+'000007 - ORDER QTY
+
+V.Local.fFeet.Declare
+V.Local.finches.Declare
+V.Local.finchesInFeet.Declare
+V.Local.finRemain.Declare
+V.Local.fPieces.Declare
+V.Local.ftotal.Declare
+V.Local.ftemp.Declare
+V.Local.finchesPerPiece.Declare
+
+'set the local variables from the user fields.  Set user field 2 passed variable to inches variable incase it's 0.
+V.Local.fFeet.Set(V.Passed.000080)
+V.Local.finches.Set(V.Passed.000082)
+v.Passed.000082.Set(v.Local.finches)
+V.Local.fPieces.Set(V.Passed.000077)
+V.Local.finchesPerPiece.Set(V.Passed.000084)
+
+'User inputted inch/piece only
+F.Intrinsic.Control.If(V.Local.finches,=,0)
+	F.Intrinsic.Control.AndIf(V.Local.ffeet,=,0)
+		
+		'calculate total feet from inch/piece to set order qty field
+		F.Intrinsic.Math.Div(V.Local.finchesPerPiece,12,V.Local.ftotal)
+		F.Intrinsic.Math.Mult(V.Local.ftotal,V.Local.fPieces,V.Local.ftotal)
+		F.Intrinsic.Math.Round(V.Local.ftotal,2,1,v.Local.ftotal)
+		V.Passed.000007.Set(V.Local.ftotal)
+		
+		'calculate feet and inch per piece to set feet and inch field
+		F.Intrinsic.Math.IDiv(v.Local.finchesPerPiece,12,V.Local.fFeet)
+		F.Intrinsic.Math.Mod(v.Local.finchesPerPiece,12,V.Local.fInches)
+		V.Passed.000080.set(v.Local.fFeet)
+		v.Passed.000082.set(v.Local.fInches)
+	'User inputted Feet/Inches
+	F.Intrinsic.Control.else
+		
+		'calculate total feet from inputted feet/inches to set order qty field
+		F.Intrinsic.Math.Div(V.Local.finches,12,V.Local.finchesInFeet)
+		F.Intrinsic.Math.Add(V.Local.fFeet,V.Local.finchesInFeet,V.Local.ftotal)
+		F.Intrinsic.Math.Mult(V.Local.ftotal,V.Local.fPieces,V.Local.ftotal)
+		F.Intrinsic.Math.Round(V.Local.ftotal,2,1,V.Local.ftotal)
+		V.Passed.000007.Set(V.Local.ftotal)
+		
+		'convert feet to total feet in inches, then add inputted inches for total inches/piece
+		F.Intrinsic.Math.Mult(v.Local.fFeet,12,v.Local.finchesPerPiece)
+		F.Intrinsic.Math.Add(v.Local.finchesPerPiece,v.Local.fInches,v.Local.finchesPerPiece)
+		v.Passed.000084.set(v.Local.finchesPerPiece)
+		
+F.Intrinsic.Control.EndIf
+Program.Sub.SalesOrderQtyCalc.End
+
+Program.Sub.QuoteQtyCalc.Start
+'000203 - SCRIPT 3
+'000030 - USER 1
+'000023 - USER 2
+'000015 - USER 3
+'000017 - USER 4
+'000022 - USER 5
+'000007 - ORDER QTY
+'675X287
+
+V.Local.fFeet.Declare
+V.Local.finches.Declare
+V.Local.finchesInFeet.Declare
+V.Local.finRemain.Declare
+V.Local.fPieces.Declare
+V.Local.ftotal.Declare
+V.Local.ftemp.Declare
+V.Local.finchesPerPiece.Declare
+
+'set the local variables from the user fields.  Set user field 2 passed variable to inches variable incase it's 0.
+V.Local.fFeet.Set(V.Passed.000023)
+V.Local.finches.Set(V.Passed.000015)
+v.Passed.000015.Set(v.Local.finches)
+V.Local.fPieces.Set(V.Passed.000030)
+V.Local.finchesPerPiece.Set(V.Passed.000017)
+
+'User inputted inch/piece only
+F.Intrinsic.Control.If(V.Local.finches,=,0)
+	F.Intrinsic.Control.AndIf(V.Local.fFeet,=,0)
+	
+		'calculate total feet from inch/piece to set order qty field
+		F.Intrinsic.Math.Div(V.Local.finchesPerPiece,12,V.Local.ftotal)
+		F.Intrinsic.Math.Mult(V.Local.ftotal,V.Local.fPieces,V.Local.ftotal)
+		f.Intrinsic.Math.Round(v.Local.ftotal,2,1,v.Local.ftotal)
+		V.Passed.000007.Set(V.Local.ftotal)
+		
+		'calculate feet and inch per piece to set feet and inch field
+		F.Intrinsic.Math.IDiv(v.Local.finchesPerPiece,12,V.Local.fFeet)
+		F.Intrinsic.Math.Mod(v.Local.finchesPerPiece,12,V.Local.fInches)
+		V.Passed.000023.set(v.Local.fFeet)
+		v.Passed.000015.set(v.Local.fInches)
+	'User inputted Feet/Inches
+	F.Intrinsic.Control.Else
+	
+		'calculate total feet from inputted feet/inches to set order qty field
+		F.Intrinsic.Math.Div(V.Local.finches,12,V.Local.finchesInFeet)
+		F.Intrinsic.Math.Add(V.Local.fFeet,V.Local.finchesInFeet,V.Local.ftotal)
+		F.Intrinsic.Math.Mult(V.Local.ftotal,V.Local.fPieces,V.Local.ftotal)
+		f.Intrinsic.Math.Round(v.Local.ftotal,2,1,v.Local.ftotal)
+		V.Passed.000007.Set(V.Local.ftotal)
+		
+		'convert feet to total feet in inches, then add inputted inches for total inches/piece
+		F.Intrinsic.Math.Mult(v.Local.fFeet,12,v.Local.finchesPerPiece)
+		F.Intrinsic.Math.Add(v.Local.finchesPerPiece,v.Local.fInches,v.Local.finchesPerPiece)
+		v.Passed.000017.set(v.Local.finchesPerPiece)
+		
+F.Intrinsic.Control.EndIf
+
+Program.Sub.QuoteQtyCalc.End
+
+Program.Sub.Comments.Start
+${$0$}$GAB_OE_QTY_CALC_JBS$}$SUPERVSR$}$11/2/2016
+Program.Sub.Comments.End
+
